@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>StudySync - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <div class="container mx-auto p-6 max-w-4xl">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-600">StudySync 📊</h1>
+            <a href="/subjects/new" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 transition">
+                + 科目を追加
+            </a>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-bold mb-4">学習を記録</h2>
+                <form action="/logs" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">科目</label>
+                        <select name="subjectId" class="w-full mt-1 p-2 border rounded" required>
+                            <% if (subjects.length === 0) { %>
+                                <option disabled selected>科目がありません</option>
+                            <% } %>
+                            <% subjects.forEach(subject => { %>
+                                <option value="<%= subject.id %>"><%= subject.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">時間 (分)</label>
+                        <input type="number" name="minutes" class="w-full mt-1 p-2 border rounded" required min="1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">メモ</label>
+                        <input type="text" name="comment" class="w-full mt-1 p-2 border rounded" placeholder="例: P.30〜P.35">
+                    </div>
+                    <button type="submit" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition font-bold">
+                        記録する
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
+                <h2 class="text-xl font-bold mb-4">学習バランス</h2>
+                <% if (stats.length > 0) { %>
+                    <canvas id="studyChart"></canvas>
+                <% } else { %>
+                    <p class="text-gray-400">データがありません</p>
+                <% } %>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4">最近の履歴</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-gray-600 uppercase">
+                        <tr>
+                            <th class="py-3 px-4">科目</th>
+                            <th class="py-3 px-4">時間</th>
+                            <th class="py-3 px-4">メモ</th>
+                            <th class="py-3 px-4">日時</th>
+                            <th class="py-3 px-4">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <% logs.forEach(log => { %>
+                            <tr>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-1 rounded text-xs text-white" style="background-color: <%= log.subject.color %>">
+                                        <%= log.subject.name %>
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-bold"><%= log.minutes %>分</td>
+                                <td class="py-3 px-4 text-gray-500"><%= log.comment || '-' %></td>
+                                <td class="py-3 px-4 text-gray-400"><%= new Date(log.createdAt).toLocaleDateString() %></td>
+                                <td class="py-3 px-4">
+                                    <form action="/logs/delete/<%= log.id %>" method="POST" onsubmit="return confirm('削除しますか？');">
+                                        <button type="submit" class="text-red-500 hover:text-red-700">削除</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // サーバーから渡されたデータをJSで使えるように変換
+        const subjectsData = <%- JSON.stringify(subjects) %>;
+        const statsData = <%- JSON.stringify(stats) %>;
+
+        if (statsData.length > 0) {
+            const ctx = document.getElementById('studyChart').getContext('2d');
+            
+            // データ整形
+            const labels = [];
+            const dataPoints = [];
+            const bgColors = [];
+
+            statsData.forEach(stat => {
+                const subject = subjectsData.find(s => s.id === stat.subjectId);
+                if (subject) {
+                    labels.push(subject.name);
+                    dataPoints.push(stat._sum.minutes);
+                    bgColors.push(subject.color);
+                }
+            });
+
+            new Chart(ctx, {
+                type: 'doughnut', // ドーナツグラフ
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataPoints,
+                        backgroundColor: bgColors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

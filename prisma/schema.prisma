@@ -1,0 +1,29 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 学習科目のモデル
+model Subject {
+  id        Int      @id @default(autoincrement())
+  name      String   // 科目名 (例: 数学, 英語)
+  color     String   // グラフ用の色コード
+  logs      Log[]    // リレーション
+  createdAt DateTime @default(now())
+}
+
+// 学習記録のモデル
+model Log {
+  id        Int      @id @default(autoincrement())
+  minutes   Int      // 学習時間（分）
+  comment   String?  // 一言メモ
+  subjectId Int
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  createdAt DateTime @default(now())
+}
